@@ -213,8 +213,50 @@ def verify(
                 reason=f"Certificate's OIDC issuer does not match (got {oidc_issuer.value})"
             )
 
+    expected_workflow_repository = config.pop("workflow-repository", None)
+    if expected_workflow_repository:
+        try:
+            workflow_repository = cert.extensions.get_extension_for_oid(_OIDC_GITHUB_WORKFLOW_REPOSITORY_OID).value
+        except ExtensionNotFound:
+            return VerificationFailure(
+                reason="Certificate does not contain the GitHub workflow repository extension"
+            )
+
+        if workflow_repository.value != expected_workflow_repository.encode():
+            return VerificationFailure(
+                reason=f"Certificate's workflow repository does not match (got {workflow_repository.value})"
+            )
+
+    expected_workflow_sha = config.pop("workflow-sha", None)
+    if expected_workflow_sha:
+        try:
+            workflow_sha = cert.extensions.get_extension_for_oid(_OIDC_GITHUB_WORKFLOW_SHA_OID).value
+        except ExtensionNotFound:
+            return VerificationFailure(
+                reason="Certificate does not contain the GitHub workflow SHA extension"
+            )
+
+        if workflow_sha.value != expected_workflow_sha.encode():
+            return VerificationFailure(
+                reason=f"Certificate's workflow SHA does not match (got {workflow_sha.value})"
+            )
+
+    expected_workflow_ref = config.pop("workflow-ref", None)
+    if expected_workflow_ref:
+        try:
+            workflow_ref = cert.extensions.get_extension_for_oid(_OIDC_GITHUB_WORKFLOW_REF_OID).value
+        except ExtensionNotFound:
+            return VerificationFailure(
+                reason="Certificate does not contain the GitHub workflow ref extension"
+            )
+
+        if workflow_ref.value != expected_workflow_ref.encode():
+            return VerificationFailure(
+                reason=f"Certificate's workflow ref does not match (got {workflow_ref.value})"
+            )
+
     if config:
-        raise ValueError(f"Unknown configuration keys: {list(config.keys())}")
+        raise ValueError(f"Unknown verify configuration: {list(config.keys())}")
 
 
     logger.debug("Successfully verified signing certificate validity...")
