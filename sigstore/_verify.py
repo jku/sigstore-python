@@ -21,7 +21,7 @@ import datetime
 import hashlib
 import logging
 from importlib import resources
-from typing import BinaryIO, Optional, cast
+from typing import BinaryIO, Dict, Optional, cast
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -32,6 +32,7 @@ from cryptography.x509 import (
     ObjectIdentifier,
     RFC822Name,
     SubjectAlternativeName,
+    UniformResourceIdentifier,
     load_pem_x509_certificate,
 )
 from cryptography.x509.oid import ExtendedKeyUsageOID
@@ -101,8 +102,7 @@ def verify(
     file: BinaryIO,
     certificate: bytes,
     signature: bytes,
-    expected_cert_email: Optional[str] = None,
-    expected_cert_oidc_issuer: Optional[str] = None,
+    config: Dict,
 ) -> VerificationResult:
     """Public API for verifying files.
 
@@ -180,15 +180,25 @@ def verify(
             reason="Extended usage does not contain `code signing`"
         )
 
-    if expected_cert_email is not None:
+    expected_san = config.pop("subject-alternative-name", None)
+    if expected_san:
         # Check that SubjectAlternativeName contains signer identity
         san_ext = cert.extensions.get_extension_for_class(SubjectAlternativeName)
-        if expected_cert_email not in san_ext.value.get_values_for_type(RFC822Name):
-            return VerificationFailure(
-                reason=f"Subject name does not contain identity: {expected_cert_email}"
-            )
+        if expected_san["type"] == "email":
+            if expected_san["value"] not in san_ext.value.get_values_for_type(RFC822Name):
+                return VerificationFailure(
+                    reason=f"Subject name does not contain email: {expected_san['value']}"
+                )
+        elif expected_san["type"] == "URI":
+            if expected_san["value"] not in san_ext.value.get_values_for_type(UniformResourceIdentifier):
+                return VerificationFailure(
+                    reason=f"Subject name does not contain URI: {expected_san['value']}"
+                )
+        else:
+            raise ValueError(f"Unknown SAN type {expected_san['type']}")
 
-    if expected_cert_oidc_issuer is not None:
+    expected_cert_oidc_issuer = config.pop("oidc-issuer", None)
+    if expected_cert_oidc_issuer:
         # Check that the OIDC issuer extension is present, and contains the expected
         # issuer string (which is probably a URL).
         try:
@@ -202,6 +212,10 @@ def verify(
             return VerificationFailure(
                 reason=f"Certificate's OIDC issuer does not match (got {oidc_issuer.value})"
             )
+
+    if config:
+        raise ValueError(f"Unknown configuration keys: {list(config.keys())}")
+
 
     logger.debug("Successfully verified signing certificate validity...")
 

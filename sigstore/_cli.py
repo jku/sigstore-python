@@ -294,6 +294,12 @@ def _github_config(org: str, project:str, workflow: str, tag:str, sha: str) -> N
     ),
 )
 @click.option(
+    "json_config",
+    "--config",
+    type=click.File("r"),
+    help=("JSON configuration defining details to verify"),
+)
+@click.option(
     "staging",
     "--staging",
     is_flag=True,
@@ -323,6 +329,7 @@ def _verify(
     cert_oidc_issuer: Optional[str],
     rekor_url: str,
     staging: bool,
+    json_config: BinaryIO,
 ) -> None:
     # If the user has explicitly requested the staging instance,
     # we need to override some of the CLI's defaults.
@@ -338,6 +345,20 @@ def _verify(
     logger.debug(f"Using signature from: {signature_path.name}")
     signature = signature_path.read()
 
+    if not json_config:
+        # build config from options
+        config = {}
+        if cert_email:
+            config["subject-alternative-name"] = {
+                "type": "email",
+                "value": cert_email,
+            }
+        if cert_oidc_issuer:
+            config["oidc-issuer"] = cert_oidc_issuer
+    else:
+        # TODO error if cert_email or cert_oidc_issuer are set?
+        config = json.loads(json_config.read())
+
     verified = True
     for file in files:
         result = verify(
@@ -345,8 +366,7 @@ def _verify(
             file=file,
             certificate=certificate,
             signature=signature,
-            expected_cert_email=cert_email,
-            expected_cert_oidc_issuer=cert_oidc_issuer,
+            config=config,
         )
 
         if result:
