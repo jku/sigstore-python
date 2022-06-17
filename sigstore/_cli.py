@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import logging
 import os
 import sys
@@ -37,6 +38,7 @@ from sigstore._internal.rekor.client import (
     DEFAULT_REKOR_URL,
     STAGING_REKOR_URL,
 )
+from sigstore._config import github_config
 from sigstore._sign import sign
 from sigstore._verify import (
     CertificateVerificationFailure,
@@ -248,6 +250,16 @@ def _sign(
             print(result.cert_pem, file=cert_output)
             click.echo(f"Certificate written to file {output_certificate}")
 
+@main.command("github-config")
+@click.option('--org', required=True)
+@click.option('--project', required=True)
+@click.option('--workflow', required=True)
+@click.argument('tag')
+@click.argument('sha')
+def _github_config(org: str, project:str, workflow: str, tag:str, sha: str) -> None:
+    """Output verifying configuration for GitHub Actions signatures"""
+    config = github_config(org, project, tag, workflow, sha)
+    print(json.dumps(config, indent=2))
 
 @main.command("verify")
 @click.option(
