@@ -201,17 +201,19 @@ def _parser() -> argparse.ArgumentParser:
         help="The signature to verify against; not used with multiple inputs",
     )
 
-    verification_options = verify.add_argument_group("Extended verification options")
+    verification_options = verify.add_argument_group("Email verification options")
     verification_options.add_argument(
         "--cert-email",
         metavar="EMAIL",
         type=str,
+        required=True,
         help="The email address to check for in the certificate's Subject Alternative Name",
     )
     verification_options.add_argument(
         "--cert-oidc-issuer",
         metavar="URL",
         type=str,
+        required=True,
         help="The OIDC issuer URL to check for in the certificate's OIDC issuer extension",
     )
 
@@ -475,7 +477,7 @@ def _verify(args: argparse.Namespace) -> None:
 
         logger.debug(f"Verifying contents from: {file}")
 
-        result = verifier.verify(
+        result = verifier.verify_email(
             input_=file.read_bytes(),
             certificate=certificate,
             signature=signature,

@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from importlib import resources
 from sigstore._verify import (
     CertificateVerificationFailure,
     VerificationFailure,
     VerificationSuccess,
     Verifier,
+    load_pem_x509_certificate,
 )
 
 
@@ -31,6 +33,9 @@ def test_verifier_staging():
 
 
 def test_verify_result_boolish():
+    pem_bytes = resources.read_binary("sigstore._store", "fulcio.crt.pem")
+    cert = load_pem_x509_certificate(pem_bytes)
+
     assert not VerificationFailure(reason="foo")
     assert not CertificateVerificationFailure(reason="foo", exception=ValueError("bar"))
-    assert VerificationSuccess()
+    assert VerificationSuccess(cert=cert)

@@ -29,6 +29,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509 import (
+    Certificate,
     ExtendedKeyUsage,
     ExtensionNotFound,
     KeyUsage,
@@ -120,15 +121,15 @@ class Verifier:
             ],
         )
 
-    def verify(
+    def verify_email(
         self,
         input_: bytes,
         certificate: bytes,
         signature: bytes,
-        expected_cert_email: Optional[str] = None,
-        expected_cert_oidc_issuer: Optional[str] = None,
+        expected_cert_email: str,
+        expected_cert_oidc_issuer: str,
     ) -> VerificationResult:
-        """Public API for verifying.
+        """Public API for verifying signatures made with an email identity.
 
         `input` is the input to verify.
 
@@ -144,6 +145,26 @@ class Verifier:
         success.
         """
 
+        result = self._verify_cert(input_, certificate, signature, expected_cert_oidc_issuer)
+        if not result:
+            return result
+
+        # Check that SubjectAlternativeName contains signer identity
+        san_ext = result.cert.extensions.get_extension_for_class(SubjectAlternativeName)
+        if expected_cert_email not in san_ext.value.get_values_for_type(RFC822Name):
+            return VerificationFailure(
+                reason=f"Subject name does not contain identity: {expected_cert_email}"
+            )
+
+        return result
+
+    def _verify_cert(
+        self,
+        input_: bytes,
+        certificate: bytes,
+        signature: bytes,
+        expected_cert_oidc_issuer: str,
+    ) -> VerificationResult:
         sha256_artifact_hash = hashlib.sha256(input_).hexdigest()
 
         cert = load_pem_x509_certificate(certificate)
@@ -193,30 +214,22 @@ class Verifier:
                 reason="Extended usage does not contain `code signing`"
             )
 
-        if expected_cert_email is not None:
-            # Check that SubjectAlternativeName contains signer identity
-            san_ext = cert.extensions.get_extension_for_class(SubjectAlternativeName)
-            if expected_cert_email not in san_ext.value.get_values_for_type(RFC822Name):
-                return VerificationFailure(
-                    reason=f"Subject name does not contain identity: {expected_cert_email}"
-                )
 
-        if expected_cert_oidc_issuer is not None:
-            # Check that the OIDC issuer extension is present, and contains the expected
-            # issuer string (which is probably a URL).
-            try:
-                oidc_issuer = cert.extensions.get_extension_for_oid(
-                    _OIDC_ISSUER_OID
-                ).value
-            except ExtensionNotFound:
-                return VerificationFailure(
-                    reason="Certificate does not contain OIDC issuer extension"
-                )
+        # Check that the OIDC issuer extension is present, and contains the expected
+        # issuer string (which is probably a URL).
+        try:
+            oidc_issuer = cert.extensions.get_extension_for_oid(
+                _OIDC_ISSUER_OID
+            ).value
+        except ExtensionNotFound:
+            return VerificationFailure(
+                reason="Certificate does not contain OIDC issuer extension"
+            )
 
-            if oidc_issuer.value != expected_cert_oidc_issuer.encode():
-                return VerificationFailure(
-                    reason=f"Certificate's OIDC issuer does not match (got {oidc_issuer.value})"
-                )
+        if oidc_issuer.value != expected_cert_oidc_issuer.encode():
+            return VerificationFailure(
+                reason=f"Certificate's OIDC issuer does not match (got {oidc_issuer.value})"
+            )
 
         logger.debug("Successfully verified signing certificate validity...")
 
@@ -284,7 +297,7 @@ class Verifier:
             return VerificationFailure(reason="No valid Rekor entries were found")
 
         logger.debug("Successfully verified Rekor entry...")
-        return VerificationSuccess()
+        return VerificationSuccess(cert=cert)
 
 
 class VerificationResult(BaseModel):
@@ -296,6 +309,11 @@ class VerificationResult(BaseModel):
 
 class VerificationSuccess(VerificationResult):
     success: bool = True
+    cert: Certificate
+
+    class Config:
+        # Needed for Certificate
+        arbitrary_types_allowed = True
 
 
 class VerificationFailure(VerificationResult):
