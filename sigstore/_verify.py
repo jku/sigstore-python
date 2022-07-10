@@ -36,6 +36,7 @@ from cryptography.x509 import (
     ObjectIdentifier,
     RFC822Name,
     SubjectAlternativeName,
+    UniformResourceIdentifier,
     load_pem_x509_certificate,
 )
 from cryptography.x509.oid import ExtendedKeyUsageOID
@@ -81,6 +82,7 @@ _OIDC_GITHUB_WORKFLOW_NAME_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.4")
 _OIDC_GITHUB_WORKFLOW_REPOSITORY_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.5")
 _OIDC_GITHUB_WORKFLOW_REF_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.6")
 
+_GITHUB_ACTIONS_ISSUER = "https://token.actions.githubusercontent.com"
 
 class Verifier:
     def __init__(self, *, rekor: RekorClient, fulcio_certificate_chain: List[bytes]):
@@ -155,6 +157,86 @@ class Verifier:
             return VerificationFailure(
                 reason=f"Subject name does not contain identity: {expected_cert_email}"
             )
+
+        return result
+
+    def verify_github(
+        self,
+        input_: bytes,
+        certificate: bytes,
+        signature: bytes,
+        expected_repository: str,
+        expected_workflow: str,
+        expected_ref: Optional[str],
+        expected_sha: Optional[str],
+    ) -> VerificationResult:
+        """Public API for verifying signatures made with a GitHub Actions identity.
+
+        `input` is the input to verify.
+
+        `certificate` is the PEM-encoded signing certificate.
+
+        `signature` is a base64-encoded signature for `file`.
+
+        `expected_repository` is the GitHub 'organization/project' name.
+
+        `expected_workflow` is the path (within the repository) to the used workflow file.
+
+        `expected_ref` is the optional workflow run triggering git ref.
+
+        `expected_sha` is the optional SHA of the commit used for the workflow run.
+
+        Returns a `VerificationResult` which will be truthy or falsey depending on
+        success.
+        """
+
+        result = self._verify_cert(input_, certificate, signature, _GITHUB_ACTIONS_ISSUER)
+        if not result:
+            return result
+
+        extensions = result.cert.extensions
+
+        san_ext = extensions.get_extension_for_class(SubjectAlternativeName)
+        sans = san_ext.value.get_values_for_type(UniformResourceIdentifier)
+
+        if expected_ref:
+            expected_san = f"https://github.com/{expected_repository}/{expected_workflow}@{expected_ref}"
+            if expected_san not in sans:
+                return VerificationFailure(
+                    reason=f"Expected subject name '{expected_san}', got '{sans}'"
+                )
+        else:
+            # No ref, test prefix of SAN only
+            expected_san = f"https://github.com/{expected_repository}/{expected_workflow}@"
+            if not any(san.startswith(expected_san) for san in sans):
+                return VerificationFailure(
+                    reason=f"Expected subject name prefix '{expected_san}', got '{sans}'"
+                )
+
+        try:
+            repository = extensions.get_extension_for_oid(_OIDC_GITHUB_WORKFLOW_REPOSITORY_OID).value
+        except ExtensionNotFound:
+            return VerificationFailure(
+                reason="Certificate does not contain the GitHub workflow repository extension"
+            )
+
+        if repository.value != expected_repository.encode():
+            return VerificationFailure(
+                reason=f"Certificate's workflow repository does not match (got {repository.value})"
+            )
+
+        if expected_sha:
+            try:
+                sha = extensions.get_extension_for_oid(_OIDC_GITHUB_WORKFLOW_SHA_OID).value
+            except ExtensionNotFound:
+                return VerificationFailure(
+                    reason="Certificate does not contain the GitHub workflow SHA extension"
+                )
+
+            if sha.value != expected_sha.encode():
+                return VerificationFailure(
+                    reason=f"Certificate's workflow SHA does not match (got {sha.value})"
+                )
 
         return result
 

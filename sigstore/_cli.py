@@ -19,7 +19,7 @@ import sys
 from importlib import resources
 from pathlib import Path
 from textwrap import dedent
-from typing import TextIO, cast
+from typing import Dict, TextIO, cast
 
 from sigstore import __version__
 from sigstore._internal.fulcio.client import DEFAULT_FULCIO_URL, FulcioClient
@@ -240,11 +240,9 @@ def _parser() -> argparse.ArgumentParser:
     )
 
     # sigstore github-verify
-    gh_verify = subcommands.add_parser(
-        "verify-github", formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    gh_verify = subcommands.add_parser("verify-github")
 
-    input_options = gh_verify.add_argument_group("GitHub verification inputs")
+    input_options = gh_verify.add_argument_group("Verification inputs")
     input_options.add_argument(
         "--certificate",
         "--cert",
@@ -259,27 +257,46 @@ def _parser() -> argparse.ArgumentParser:
         help="The signature to verify against; not used with multiple inputs",
     )
 
-    gh_options = gh_verify.add_argument_group("GitHub claims options")
-    gh_options.add_argument(
-        "--organization",
-        metavar="ORG",
-        required=True,
-        help="The GitHub organization",
+    instance_options = gh_verify.add_argument_group("Sigstore instance options")
+    instance_options.add_argument(
+        "--rekor-url",
+        metavar="URL",
+        type=str,
+        default=DEFAULT_REKOR_URL,
+        help="The Rekor instance to use (conflicts with --staging)",
     )
+    instance_options.add_argument(
+        "--staging",
+        action="store_true",
+        help="Use sigstore's staging instances, instead of the default production instances",
+    )
+
+    gh_options = gh_verify.add_argument_group("GitHub claims to verify")
     gh_options.add_argument(
-        "--project",
+        "--repository",
+        metavar="REPO",
         required=True,
-        help="The GitHub project",
+        help="The GitHub repository (as in 'organization/project')",
     )
     gh_options.add_argument(
         "--workflow",
         required=True,
-        help="Path to workflow file",
+        help="Path to workflow file within the repository",
     )
+
+    # Optional GitHub claims: sha and the mutually exclusiveref/tag
     gh_options.add_argument(
         "--sha",
-        required=True,
-        help="The SHA checksum of the used commit",
+        help="Optional SHA checksum of the used commit",
+    )
+    ref_options = gh_options.add_mutually_exclusive_group()
+    ref_options.add_argument(
+        "--ref",
+        help="Optional ref that triggered the workflow run",
+    )
+    ref_options.add_argument(
+        "--tag",
+        help="Optional tag that triggered the workflow run: shorthand for '--ref refs/tags/TAG'",
     )
 
     gh_verify.add_argument(
@@ -420,8 +437,7 @@ def _sign(args: argparse.Namespace) -> None:
             print(result.cert_pem, file=cert_output)
             print(f"Certificate written to file {outputs['cert']}")
 
-
-def _verify(args: argparse.Namespace) -> None:
+def _parse_input(args: argparse.Namespace) -> Dict[str, Dict[str, str]]:
     # Fail if `--certificate` or `--signature` is specified and we have more than one input.
     if (args.certificate or args.signature) and len(args.files) > 1:
         args._parser.error(
@@ -453,6 +469,10 @@ def _verify(args: argparse.Namespace) -> None:
             )
 
         input_map[file] = {"cert": cert, "sig": sig}
+    return input_map
+    
+def _verify(args: argparse.Namespace) -> None:
+    input_map = _parse_input(args)
 
     if args.staging:
         logger.debug("verify: staging instances requested")
@@ -518,4 +538,52 @@ def _verify(args: argparse.Namespace) -> None:
             sys.exit(1)
 
 def _verify_github(args: argparse.Namespace) -> None:
-    pass
+    input_map = _parse_input(args)
+
+    # Handle tag as ref
+    if args.tag:
+        ref = f"refs/tags/{args.tag}"
+    else:
+        ref = args.ref
+
+    if args.staging:
+        logger.debug("verify: staging instances requested")
+        verifier = Verifier.staging()
+    elif args.rekor_url == DEFAULT_REKOR_URL:
+        verifier = Verifier.production()
+    else:
+        # TODO: We need CLI flags that allow the user to figure the Fulcio cert chain
+        # for verification.
+        args._parser.error(
+            "Custom Rekor and Fulcio configuration for verification isn't fully supported yet!",
+        )
+
+    for file, inputs in input_map.items():
+        # Load the signing certificate
+        logger.debug(f"Using certificate from: {inputs['cert']}")
+        certificate = inputs["cert"].read_bytes()
+
+        # Load the signature
+        logger.debug(f"Using signature from: {inputs['sig']}")
+        signature = inputs["sig"].read_bytes()
+
+        logger.debug(f"Verifying contents from: {file}")
+
+        result = verifier.verify_github(
+            input_=file.read_bytes(),
+            certificate=certificate,
+            signature=signature,
+            expected_repository=args.repository,
+            expected_workflow=args.workflow,
+            expected_ref=ref,
+            expected_sha=args.sha,
+        )
+
+        if result:
+            print(f"OK: {file}")
+        else:
+            result = cast(VerificationFailure, result)
+            print(f"FAIL: {file}")
+            print(f"Failure reason: {result.reason}", file=sys.stderr)
+            sys.exit(1)
+    
