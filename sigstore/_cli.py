@@ -237,6 +237,57 @@ def _parser() -> argparse.ArgumentParser:
         help="The file to verify",
     )
 
+    # sigstore github-verify
+    gh_verify = subcommands.add_parser(
+        "verify-github", formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    input_options = gh_verify.add_argument_group("GitHub verification inputs")
+    input_options.add_argument(
+        "--certificate",
+        "--cert",
+        metavar="FILE",
+        type=Path,
+        help="The PEM-encoded certificate to verify against; not used with multiple inputs",
+    )
+    input_options.add_argument(
+        "--signature",
+        metavar="FILE",
+        type=Path,
+        help="The signature to verify against; not used with multiple inputs",
+    )
+
+    gh_options = gh_verify.add_argument_group("GitHub claims options")
+    gh_options.add_argument(
+        "--organization",
+        metavar="ORG",
+        required=True,
+        help="The GitHub organization",
+    )
+    gh_options.add_argument(
+        "--project",
+        required=True,
+        help="The GitHub project",
+    )
+    gh_options.add_argument(
+        "--workflow",
+        required=True,
+        help="Path to workflow file",
+    )
+    gh_options.add_argument(
+        "--sha",
+        required=True,
+        help="The SHA checksum of the used commit",
+    )
+
+    gh_verify.add_argument(
+        "files",
+        metavar="FILE",
+        type=Path,
+        nargs="+",
+        help="The file to verify",
+    )
+
     return parser
 
 
@@ -254,6 +305,8 @@ def main() -> None:
         _sign(args)
     elif args.subcommand == "verify":
         _verify(args)
+    elif args.subcommand == "verify-github":
+        _verify_github(args)
     else:
         parser.error(f"Unknown subcommand: {args.subcommand}")
 
@@ -461,3 +514,6 @@ def _verify(args: argparse.Namespace) -> None:
                 )
 
             sys.exit(1)
+
+def _verify_github(args: argparse.Namespace) -> None:
+    pass
