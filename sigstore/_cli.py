@@ -459,14 +459,6 @@ def _parser() -> argparse.ArgumentParser:
         help="The `git` commit SHA that the workflow run was invoked with",
     )
     verification_options.add_argument(
-        "--name",
-        dest="workflow_name",
-        metavar="NAME",
-        type=str,
-        default=os.getenv("SIGSTORE_VERIFY_GITHUB_WORKFLOW_NAME"),
-        help="The name of the workflow that was triggered",
-    )
-    verification_options.add_argument(
         "--repository",
         dest="workflow_repository",
         metavar="REPO",
@@ -950,15 +942,14 @@ def _verify_github(args: argparse.Namespace) -> None:
     ]
 
     if args.workflow_trigger:
-        inner_policies.append(policy.GitHubWorkflowTrigger(args.workflow_trigger))
+        inner_policies.append(policy.BuildTrigger(args.workflow_trigger))
     if args.workflow_sha:
-        inner_policies.append(policy.GitHubWorkflowSHA(args.workflow_sha))
-    if args.workflow_name:
-        inner_policies.append(policy.GitHubWorkflowName(args.workflow_name))
+        inner_policies.append(policy.SourceRepositoryDigest(args.workflow_sha))
     if args.workflow_repository:
-        inner_policies.append(policy.GitHubWorkflowRepository(args.workflow_repository))
+        uri = f"https://github.com/{args.workflow_repository}"
+        inner_policies.append(policy.SourceRepositoryURI(uri))
     if args.workflow_ref:
-        inner_policies.append(policy.GitHubWorkflowRef(args.workflow_ref))
+        inner_policies.append(policy.SourceRepositoryRef(args.workflow_ref))
 
     policy_ = policy.AllOf(inner_policies)
 

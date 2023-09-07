@@ -48,12 +48,11 @@ from sigstore.verify.models import (
 logger = logging.getLogger(__name__)
 
 # From: https://github.com/sigstore/fulcio/blob/main/docs/oid-info.md
-_OIDC_ISSUER_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.1")
-_OIDC_GITHUB_WORKFLOW_TRIGGER_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.2")
-_OIDC_GITHUB_WORKFLOW_SHA_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.3")
-_OIDC_GITHUB_WORKFLOW_NAME_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.4")
-_OIDC_GITHUB_WORKFLOW_REPOSITORY_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.5")
-_OIDC_GITHUB_WORKFLOW_REF_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.6")
+_OIDC_ISSUER_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.8")
+_OIDC_BUILD_TRIGGER_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.20")
+_OIDC_SOURCE_REPOSITORY_DIGEST_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.13")
+_OIDC_SOURCE_REPOSITORY_URI_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.12")
+_OIDC_SOURCE_REPOSITORY_REF_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.14")
 _OTHERNAME_OID = ObjectIdentifier("1.3.6.1.4.1.57264.1.7")
 
 
@@ -106,55 +105,46 @@ class _SingleX509ExtPolicy(ABC):
 class OIDCIssuer(_SingleX509ExtPolicy):
     """
     Verifies the certificate's OIDC issuer, identified by
-    an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.1`.
+    an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.8`.
     """
 
     oid = _OIDC_ISSUER_OID
 
 
-class GitHubWorkflowTrigger(_SingleX509ExtPolicy):
+class BuildTrigger(_SingleX509ExtPolicy):
     """
-    Verifies the certificate's GitHub Actions workflow trigger,
-    identified by an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.2`.
-    """
-
-    oid = _OIDC_GITHUB_WORKFLOW_TRIGGER_OID
-
-
-class GitHubWorkflowSHA(_SingleX509ExtPolicy):
-    """
-    Verifies the certificate's GitHub Actions workflow commit SHA,
-    identified by an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.3`.
+    Verifies the certificate's Build Trigger,
+    identified by an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.20`.
     """
 
-    oid = _OIDC_GITHUB_WORKFLOW_SHA_OID
+    oid = _OIDC_BUILD_TRIGGER_OID
 
 
-class GitHubWorkflowName(_SingleX509ExtPolicy):
+class SourceRepositoryDigest(_SingleX509ExtPolicy):
     """
-    Verifies the certificate's GitHub Actions workflow name,
-    identified by an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.4`.
-    """
-
-    oid = _OIDC_GITHUB_WORKFLOW_NAME_OID
-
-
-class GitHubWorkflowRepository(_SingleX509ExtPolicy):
-    """
-    Verifies the certificate's GitHub Actions workflow repository,
-    identified by an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.5`.
+    Verifies the certificate's Source Repository Digest,
+    identified by an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.13`.
     """
 
-    oid = _OIDC_GITHUB_WORKFLOW_REPOSITORY_OID
+    oid = _OIDC_SOURCE_REPOSITORY_DIGEST_OID
 
 
-class GitHubWorkflowRef(_SingleX509ExtPolicy):
+class SourceRepositoryURI(_SingleX509ExtPolicy):
     """
-    Verifies the certificate's GitHub Actions workflow ref,
-    identified by an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.6`.
+    Verifies the certificate's Source Repository URI,
+    identified by an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.12`.
     """
 
-    oid = _OIDC_GITHUB_WORKFLOW_REF_OID
+    oid = _OIDC_SOURCE_REPOSITORY_URI_OID
+
+
+class SourceRepositoryRef(_SingleX509ExtPolicy):
+    """
+    Verifies the certificate's Source Repository Ref,
+    identified by an X.509v3 extension tagged with `1.3.6.1.4.1.57264.1.14`.
+    """
+
+    oid = _OIDC_SOURCE_REPOSITORY_REF_OID
 
 
 class VerificationPolicy(Protocol):
