@@ -148,3 +148,14 @@ class TrustedRoot(_TrustedRoot):
         if not certs:
             raise MetadataError("Fulcio certificates not found in trusted root")
         return certs
+
+    def get_fulcio_url(self) -> str:
+        """Return the active (non-expired) Fulcio URL."""
+
+        for ca in self.certificate_authorities:
+            if _is_timerange_valid(ca.valid_for, allow_expired=False):
+                # Return first valid Fulcio url
+                uri: str = ca.uri
+                return uri
+
+        raise MetadataError("No currently valid Fulcio instances found in trusted root")

@@ -160,24 +160,19 @@ def test_trust_root_bundled_get(monkeypatch, mock_staging_tuf, tuf_asset):
         ]
     ]
 
-    # Assert that trust root from TUF contains the expected keys/certs
-    trust_root = TrustedRoot.staging()
-    assert _der_keys(trust_root.get_ctfe_keys()) == ctfe_keys
-    assert _der_keys(trust_root.get_rekor_keys()) == rekor_keys
-    assert trust_root.get_fulcio_certs() == fulcio_certs
-
-    # Assert that trust root from offline TUF contains the expected keys/certs
-    trust_root = TrustedRoot.staging(offline=True)
-    assert _der_keys(trust_root.get_ctfe_keys()) == ctfe_keys
-    assert _der_keys(trust_root.get_rekor_keys()) == rekor_keys
-    assert trust_root.get_fulcio_certs() == fulcio_certs
-
-    # Assert that trust root from file contains the expected keys/certs
+    # Create trust roots using TUF, offline TUF and from a file.
     path = tuf_asset.target_path("trusted_root.json")
-    trust_root = TrustedRoot.from_file(path)
-    assert _der_keys(trust_root.get_ctfe_keys()) == ctfe_keys
-    assert _der_keys(trust_root.get_rekor_keys()) == rekor_keys
-    assert trust_root.get_fulcio_certs() == fulcio_certs
+    trust_roots = [
+        TrustedRoot.staging(),
+        TrustedRoot.staging(offline=True),
+        TrustedRoot.from_file(path),
+    ]
+    # For each trust root, assert that contents are as epxected
+    for trust_root in trust_roots:
+        assert _der_keys(trust_root.get_ctfe_keys()) == ctfe_keys
+        assert _der_keys(trust_root.get_rekor_keys()) == rekor_keys
+        assert trust_root.get_fulcio_certs() == fulcio_certs
+        assert trust_root.get_fulcio_url() == "https://fulcio.sigstage.dev"
 
 
 def test_trust_root_tuf_instance_error():
