@@ -132,15 +132,18 @@ class TrustedRoot(_TrustedRoot):
             for cert in ca.cert_chain.certificates:
                 yield cert.raw_bytes
 
-    def get_ctfe_keys(self) -> list[LogInstance]:
-        """Return the active CTFE public keys contents."""
+    def get_ctfe_logs(self) -> list[LogInstance]:
+        """Return the active CTFE logs (URLs and public keys)."""
         ctfes: list[LogInstance] = list(self._get_tlog_keys(self.ctlogs))
         if not ctfes:
             raise MetadataError("Active CTFE keys not found in trusted root")
         return ctfes
 
-    def get_rekor_keys(self) -> list[LogInstance]:
-        """Return the rekor public key content."""
+    def get_rekor_logs(self) -> list[LogInstance]:
+        """Return the active rekor logs (URLs and public keys).
+
+        In practice a list with a single log is currently returned.
+        """
         keys: list[LogInstance] = list(self._get_tlog_keys(self.tlogs))
 
         if len(keys) != 1:

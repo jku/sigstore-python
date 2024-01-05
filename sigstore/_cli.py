@@ -654,17 +654,17 @@ def _sign(args: argparse.Namespace) -> None:
         trusted_root = TrustedRoot.production()
         if args.ctfe_pem is not None:
             key = load_pem_public_key(args.ctfe_pem.read())
-            ctfe_keys = [LogInstance(args.fulcio_url, key)]
+            ctfe_logs = [LogInstance(args.fulcio_url, key)]
         else:
-            ctfe_keys = trusted_root.get_ctfe_keys()
+            ctfe_logs = trusted_root.get_ctfe_logs()
         if args.rekor_root_pubkey is not None:
             key = load_pem_public_key(args.rekor_root_pubkey.read())
-            rekor_keys = [LogInstance(args.rekor_url, key)]
+            rekor_logs = [LogInstance(args.rekor_url, key)]
         else:
-            rekor_keys = trusted_root.get_rekor_keys()
+            rekor_logs = trusted_root.get_rekor_logs()
 
-        ct_keyring = CTKeyring(Keyring(ctfe_keys))
-        rekor_keyring = RekorKeyring(Keyring(rekor_keys))
+        ct_keyring = CTKeyring(Keyring(ctfe_logs))
+        rekor_keyring = RekorKeyring(Keyring(rekor_logs))
 
         signing_ctx = SigningContext(
             fulcio=FulcioClient(args.fulcio_url),
@@ -829,15 +829,15 @@ def _collect_verification_state(
 
         if args.rekor_root_pubkey is not None:
             key = load_pem_public_key(args.rekor_root_pubkey.read())
-            rekor_keys = [LogInstance(args.rekor_url, key)]
+            rekor_logs = [LogInstance(args.rekor_url, key)]
         else:
             trusted_root = TrustedRoot.production()
-            rekor_keys = trusted_root.get_rekor_keys()
+            rekor_logs = trusted_root.get_rekor_logs()
 
         verifier = Verifier(
             rekor=RekorClient(
                 url=args.rekor_url,
-                rekor_keyring=RekorKeyring(Keyring(rekor_keys)),
+                rekor_keyring=RekorKeyring(Keyring(rekor_logs)),
                 # We don't use the CT keyring in verification so we can supply an empty keyring
                 ct_keyring=CTKeyring(Keyring()),
             ),

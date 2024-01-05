@@ -238,8 +238,8 @@ class RekorClient:
 
         trust_root must be a `TrustedRoot` for the production TUF repository.
         """
-        rekor_keys = trust_root.get_rekor_keys()
-        ctfe_keys = trust_root.get_ctfe_keys()
+        rekor_keys = trust_root.get_rekor_logs()
+        ctfe_keys = trust_root.get_ctfe_logs()
 
         return cls(
             DEFAULT_REKOR_URL,
@@ -254,8 +254,8 @@ class RekorClient:
 
         trust_root must be a `TrustedRoot` for the staging TUF repository.
         """
-        rekor_keys = trust_root.get_rekor_keys()
-        ctfe_keys = trust_root.get_ctfe_keys()
+        rekor_keys = trust_root.get_rekor_logs()
+        ctfe_keys = trust_root.get_ctfe_logs()
 
         return cls(
             STAGING_REKOR_URL,

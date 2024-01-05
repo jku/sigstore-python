@@ -49,8 +49,8 @@ def test_trust_root_tuf_caches_and_requests(mock_staging_tuf, tuf_dirs):
     assert reqs == expected_requests
     assert fail_reqs == expected_fail_reqs
 
-    trust_root.get_ctfe_keys()
-    trust_root.get_rekor_keys()
+    trust_root.get_ctfe_logs()
+    trust_root.get_rekor_logs()
 
     # no new requests
     assert reqs == expected_requests
@@ -65,8 +65,8 @@ def test_trust_root_tuf_caches_and_requests(mock_staging_tuf, tuf_dirs):
     assert reqs == expected_requests
     assert fail_reqs == expected_fail_reqs
 
-    trust_root.get_ctfe_keys()
-    trust_root.get_rekor_keys()
+    trust_root.get_ctfe_logs()
+    trust_root.get_rekor_logs()
     # Expect no requests
     assert reqs == expected_requests
     assert fail_reqs == expected_fail_reqs
@@ -87,8 +87,8 @@ def test_trust_root_tuf_offline(mock_staging_tuf, tuf_dirs):
     assert reqs == {}
     assert fail_reqs == {}
 
-    trust_root.get_ctfe_keys()
-    trust_root.get_rekor_keys()
+    trust_root.get_ctfe_logs()
+    trust_root.get_rekor_logs()
 
     # Still no requests
     assert reqs == {}
@@ -152,8 +152,8 @@ def test_trust_root_bundled_get(monkeypatch, mock_staging_tuf, tuf_asset):
     ]
     # For each trust root, assert that contents are as expected
     for trust_root in trust_roots:
-        assert trust_root.get_ctfe_keys() == ctfe_logs
-        assert trust_root.get_rekor_keys() == rekor_logs
+        assert trust_root.get_ctfe_logs() == ctfe_logs
+        assert trust_root.get_rekor_logs() == rekor_logs
         assert trust_root.get_fulcio_certs() == fulcio_certs
         assert trust_root.get_fulcio_url() == "https://fulcio.sigstage.dev"
 
@@ -167,7 +167,7 @@ def test_trust_root_tuf_ctfe_keys_error(monkeypatch):
     trust_root = TrustedRoot.staging(offline=True)
     monkeypatch.setattr(trust_root, "ctlogs", [])
     with pytest.raises(Exception, match="Active CTFE keys not found in trusted root"):
-        trust_root.get_ctfe_keys()
+        trust_root.get_ctfe_logs()
 
 
 def test_trust_root_fulcio_certs_error(tuf_asset, monkeypatch):
