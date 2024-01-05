@@ -33,6 +33,13 @@ from sigstore_protobuf_specs.dev.sigstore.trustroot.v1 import (
 )
 
 from sigstore._internal.tuf import DEFAULT_TUF_URL, STAGING_TUF_URL, TrustUpdater
+from sigstore._utils import (
+    InvalidKeyError,
+    LogInstance,
+    UnexpectedKeyFormatError,
+    load_der_public_key,
+    load_pem_public_key,
+)
 from sigstore.errors import MetadataError
 
 
@@ -96,15 +103,22 @@ class TrustedRoot(_TrustedRoot):
         return cls.from_tuf(STAGING_TUF_URL, offline)
 
     @staticmethod
-    def _get_tlog_keys(tlogs: list[TransparencyLogInstance]) -> Iterable[bytes]:
-        """Return public key contents given transparency log instances."""
+    def _get_tlog_keys(tlogs: list[TransparencyLogInstance]) -> Iterable[LogInstance]:
+        """Yield LogInstances (url and public key) for all valid logs"""
 
-        for key in tlogs:
-            if not _is_timerange_valid(key.public_key.valid_for, allow_expired=False):
+        for log in tlogs:
+            if not _is_timerange_valid(log.public_key.valid_for, allow_expired=False):
                 continue
-            key_bytes = key.public_key.raw_bytes
-            if key_bytes:
-                yield key_bytes
+            key_bytes = log.public_key.raw_bytes
+            if key_bytes and log.base_url:
+                try:
+                    key = load_pem_public_key(key_bytes)
+                except UnexpectedKeyFormatError as e:
+                    raise e
+                except InvalidKeyError:
+                    key = load_der_public_key(key_bytes)
+
+                yield LogInstance(log.base_url, key)
 
     @staticmethod
     def _get_ca_keys(
@@ -118,16 +132,16 @@ class TrustedRoot(_TrustedRoot):
             for cert in ca.cert_chain.certificates:
                 yield cert.raw_bytes
 
-    def get_ctfe_keys(self) -> list[bytes]:
+    def get_ctfe_keys(self) -> list[LogInstance]:
         """Return the active CTFE public keys contents."""
-        ctfes: list[bytes] = list(self._get_tlog_keys(self.ctlogs))
+        ctfes: list[LogInstance] = list(self._get_tlog_keys(self.ctlogs))
         if not ctfes:
             raise MetadataError("Active CTFE keys not found in trusted root")
         return ctfes
 
-    def get_rekor_keys(self) -> list[bytes]:
+    def get_rekor_keys(self) -> list[LogInstance]:
         """Return the rekor public key content."""
-        keys: list[bytes] = list(self._get_tlog_keys(self.tlogs))
+        keys: list[LogInstance] = list(self._get_tlog_keys(self.tlogs))
 
         if len(keys) != 1:
             raise MetadataError("Did not find one active Rekor key in trusted root")

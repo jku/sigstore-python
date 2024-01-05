@@ -17,12 +17,11 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from cryptography.x509 import load_pem_x509_certificate
 from sigstore_protobuf_specs.dev.sigstore.common.v1 import TimeRange
 
 from sigstore._internal.trustroot import TrustedRoot, _is_timerange_valid
-from sigstore._utils import load_der_public_key, load_pem_public_key
+from sigstore._utils import LogInstance, load_pem_public_key
 from sigstore.errors import RootError
 
 
@@ -126,32 +125,16 @@ def test_is_timerange_valid():
 
 
 def test_trust_root_bundled_get(monkeypatch, mock_staging_tuf, tuf_asset):
-    # We don't strictly need to re-encode these keys as they are already DER,
-    # but by doing so we are also validating the keys structurally.
-    def _der_keys(keys):
-        return [
-            load_der_public_key(k).public_bytes(
-                Encoding.DER, PublicFormat.SubjectPublicKeyInfo
-            )
-            for k in keys
-        ]
+    # certs and keys happen to be individual tuf assets: load those for comparison
+    def _pem_key(filename: str):
+        return load_pem_public_key(tuf_asset.target(filename))
 
-    def _pem_keys(keys):
-        return [
-            load_pem_public_key(k).public_bytes(
-                Encoding.DER, PublicFormat.SubjectPublicKeyInfo
-            )
-            for k in keys
-        ]
-
-    ctfe_keys = _pem_keys(
-        [
-            tuf_asset.target("ctfe.pub"),
-            tuf_asset.target("ctfe_2022.pub"),
-            tuf_asset.target("ctfe_2022_2.pub"),
-        ]
-    )
-    rekor_keys = _pem_keys([tuf_asset.target("rekor.pub")])
+    ctfe_logs = [
+        LogInstance("https://ctfe.sigstage.dev/test", _pem_key("ctfe.pub")),
+        LogInstance("https://ctfe.sigstage.dev/2022", _pem_key("ctfe_2022.pub")),
+        LogInstance("https://ctfe.sigstage.dev/2022-2", _pem_key("ctfe_2022_2.pub")),
+    ]
+    rekor_logs = [LogInstance("https://rekor.sigstage.dev", _pem_key("rekor.pub"))]
     fulcio_certs = [
         load_pem_x509_certificate(c)
         for c in [
@@ -167,10 +150,10 @@ def test_trust_root_bundled_get(monkeypatch, mock_staging_tuf, tuf_asset):
         TrustedRoot.staging(offline=True),
         TrustedRoot.from_file(path),
     ]
-    # For each trust root, assert that contents are as epxected
+    # For each trust root, assert that contents are as expected
     for trust_root in trust_roots:
-        assert _der_keys(trust_root.get_ctfe_keys()) == ctfe_keys
-        assert _der_keys(trust_root.get_rekor_keys()) == rekor_keys
+        assert trust_root.get_ctfe_keys() == ctfe_logs
+        assert trust_root.get_rekor_keys() == rekor_logs
         assert trust_root.get_fulcio_certs() == fulcio_certs
         assert trust_root.get_fulcio_url() == "https://fulcio.sigstage.dev"
 

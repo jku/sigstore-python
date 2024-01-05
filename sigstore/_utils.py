@@ -21,6 +21,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import sys
+from dataclasses import dataclass
 from typing import IO, NewType, Union
 
 from cryptography.hazmat.primitives import serialization
@@ -58,6 +59,14 @@ KeyID = NewType("KeyID", bytes)
 """
 A newtype for `bytes` objects that contain a key id.
 """
+
+
+@dataclass
+class LogInstance:
+    """The base URL and public key of a transparency log"""
+
+    url: str
+    key: PublicKey
 
 
 class InvalidKeyError(Error):

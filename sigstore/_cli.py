@@ -41,7 +41,7 @@ from sigstore._internal.rekor.client import (
     RekorKeyring,
 )
 from sigstore._internal.trustroot import TrustedRoot
-from sigstore._utils import PEMCert
+from sigstore._utils import LogInstance, PEMCert, load_pem_public_key
 from sigstore.errors import Error
 from sigstore.oidc import (
     DEFAULT_OAUTH_ISSUER_URL,
@@ -653,11 +653,13 @@ def _sign(args: argparse.Namespace) -> None:
         # Assume "production" trust root if no keys are given as arguments
         trusted_root = TrustedRoot.production()
         if args.ctfe_pem is not None:
-            ctfe_keys = [args.ctfe_pem.read()]
+            key = load_pem_public_key(args.ctfe_pem.read())
+            ctfe_keys = [LogInstance(args.fulcio_url, key)]
         else:
             ctfe_keys = trusted_root.get_ctfe_keys()
         if args.rekor_root_pubkey is not None:
-            rekor_keys = [args.rekor_root_pubkey.read()]
+            key = load_pem_public_key(args.rekor_root_pubkey.read())
+            rekor_keys = [LogInstance(args.rekor_url, key)]
         else:
             rekor_keys = trusted_root.get_rekor_keys()
 
@@ -826,7 +828,8 @@ def _collect_verification_state(
             _die(args, f"Invalid certificate chain: {error}")
 
         if args.rekor_root_pubkey is not None:
-            rekor_keys = [args.rekor_root_pubkey.read()]
+            key = load_pem_public_key(args.rekor_root_pubkey.read())
+            rekor_keys = [LogInstance(args.rekor_url, key)]
         else:
             trusted_root = TrustedRoot.production()
             rekor_keys = trusted_root.get_rekor_keys()

@@ -17,6 +17,7 @@ import pytest
 
 from sigstore._internal.ctfe import CTKeyring
 from sigstore._internal.keyring import Keyring, KeyringLookupError
+from sigstore._utils import LogInstance, load_pem_public_key
 
 
 class TestCTKeyring:
@@ -27,19 +28,8 @@ class TestCTKeyring:
             b"dDxz/SfnRi1fT8ekpfBd2O1uoz7jr3Z8nKzxA69EUQ+eFCFI3zeubPWU7w==\n"
             b"-----END PUBLIC KEY-----"
         )
-        ctkeyring = CTKeyring(Keyring([keybytes]))
-        assert len(ctkeyring._keyring) == 1
-
-    def test_keyring_add(self):
-        # same as above but manually `add`ing key.
-        keybytes = (
-            b"-----BEGIN PUBLIC KEY-----\n"
-            b"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEbfwR+RJudXscgRBRpKX1XFDy3Pyu\n"
-            b"dDxz/SfnRi1fT8ekpfBd2O1uoz7jr3Z8nKzxA69EUQ+eFCFI3zeubPWU7w==\n"
-            b"-----END PUBLIC KEY-----"
-        )
-        ctkeyring = CTKeyring(Keyring())
-        ctkeyring.add(keybytes)
+        log = LogInstance("https://example.com", load_pem_public_key(keybytes))
+        ctkeyring = CTKeyring(Keyring([log]))
         assert len(ctkeyring._keyring) == 1
 
     def test_verify_fail_empty_keyring(self):
