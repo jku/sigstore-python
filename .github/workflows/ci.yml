@@ -8,6 +8,7 @@ on:
   pull_request:
   schedule:
     - cron: '0 12 * * *'
+  workflow_dispatch:
 
 jobs:
   test:
@@ -54,6 +55,10 @@ jobs:
           # We also explicitly exclude the intergration tests, since these are
           # always online.
           unshare --map-root-user --net make test T="test/unit" TEST_ARGS="--skip-online -vv --showlocals"
+
+      - name: debug csr
+        run: |
+          . env/bin/activate && sigstore sign README.md
 
       - name: test
         run: make test TEST_ARGS="-vv --showlocals"

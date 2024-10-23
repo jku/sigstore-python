@@ -155,6 +155,8 @@ class Signer:
                 )
             )
             certificate_request = builder.sign(self._private_key, hashes.SHA256())
+            print("CSR for ", self._identity_token._identity)
+            print(certificate_request.public_bytes(serialization.Encoding.PEM))
 
             certificate_response = self._signing_ctx._fulcio.signing_cert.post(
                 certificate_request, self._identity_token
