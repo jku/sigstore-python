@@ -58,7 +58,7 @@ jobs:
     strategy:
       fail-fast: false # Don't cancel other jobs if one fails
       matrix:
-        version: [v3.6.5, v4.0.0, v4.1.0]
+        version: [v3.6.5, v4.0.0, v4.1.0, backport-trust-root-fixes-to-3.5]
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
