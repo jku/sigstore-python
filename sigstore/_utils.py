@@ -44,6 +44,9 @@ if sys.version_info < (3, 11):
 else:
     from importlib import resources
 
+# Default timeout for network requests (in seconds)
+DEFAULT_TIMEOUT = 30
+
 
 PublicKey = Union[rsa.RSAPublicKey, ec.EllipticCurvePublicKey, ed25519.Ed25519PublicKey]
 

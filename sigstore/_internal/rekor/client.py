@@ -36,6 +36,7 @@ from sigstore._internal.rekor import (
     RekorClientError,
     RekorLogSubmitter,
 )
+from sigstore._utils import DEFAULT_TIMEOUT
 from sigstore.dsse import Envelope
 from sigstore.hashes import Hashed
 from sigstore.models import TransparencyLogEntry
@@ -99,7 +100,7 @@ class RekorLog(_Endpoint):
         """
         Returns information about the Rekor instance's log.
         """
-        resp: requests.Response = self.session.get(self.url)
+        resp: requests.Response = self.session.get(self.url, timeout=DEFAULT_TIMEOUT)
         try:
             resp.raise_for_status()
         except requests.HTTPError as http_error:
@@ -134,9 +135,11 @@ class RekorEntries(_Endpoint):
         resp: requests.Response
 
         if uuid is not None:
-            resp = self.session.get(f"{self.url}/{uuid}")
+            resp = self.session.get(f"{self.url}/{uuid}", timeout=DEFAULT_TIMEOUT)
         else:
-            resp = self.session.get(self.url, params={"logIndex": log_index})
+            resp = self.session.get(
+                self.url, params={"logIndex": log_index}, timeout=DEFAULT_TIMEOUT
+            )
 
         try:
             resp.raise_for_status()
@@ -154,7 +157,9 @@ class RekorEntries(_Endpoint):
 
         _logger.debug(f"proposed: {json.dumps(payload)}")
 
-        resp: requests.Response = self.session.post(self.url, json=payload)
+        resp: requests.Response = self.session.post(
+            self.url, json=payload, timeout=DEFAULT_TIMEOUT
+        )
         try:
             resp.raise_for_status()
         except requests.HTTPError as http_error:
@@ -190,7 +195,9 @@ class RekorEntriesRetrieve(_Endpoint):
         """
         data = {"entries": [expected_entry.model_dump(mode="json", by_alias=True)]}
 
-        resp: requests.Response = self.session.post(self.url, json=data)
+        resp: requests.Response = self.session.post(
+            self.url, json=data, timeout=DEFAULT_TIMEOUT
+        )
         try:
             resp.raise_for_status()
         except requests.HTTPError as http_error:
