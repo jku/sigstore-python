@@ -67,6 +67,12 @@ A newtype for `bytes` objects that contain a key id.
 """
 
 
+DEFAULT_TIMEOUT: int = 30
+"""
+Global default timeout (in seconds) for network requests.
+"""
+
+
 def load_pem_public_key(
     key_pem: bytes,
     *,
