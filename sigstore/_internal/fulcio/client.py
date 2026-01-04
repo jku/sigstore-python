@@ -34,7 +34,7 @@ from cryptography.x509 import (
 )
 
 from sigstore._internal import USER_AGENT
-from sigstore._utils import B64Str
+from sigstore._utils import DEFAULT_TIMEOUT, B64Str
 from sigstore.oidc import IdentityToken
 
 _logger = logging.getLogger(__name__)
@@ -103,7 +103,10 @@ class FulcioSigningCert(_Endpoint):
             "Accept": "application/pem-certificate-chain",
         }
         resp: requests.Response = self.session.post(
-            url=self.url, data=_serialize_cert_request(req), headers=headers
+            url=self.url,
+            data=_serialize_cert_request(req),
+            headers=headers,
+            timeout=DEFAULT_TIMEOUT,
         )
         try:
             resp.raise_for_status()
@@ -141,7 +144,7 @@ class FulcioTrustBundle(_Endpoint):
 
     def get(self) -> FulcioTrustBundleResponse:
         """Get the certificate chains from Fulcio"""
-        resp: requests.Response = self.session.get(self.url)
+        resp: requests.Response = self.session.get(self.url, timeout=DEFAULT_TIMEOUT)
         try:
             resp.raise_for_status()
         except requests.HTTPError as http_error:
