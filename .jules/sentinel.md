@@ -1,0 +1,4 @@
+## 2026-01-05 - Missing CSRF State Validation in OIDC
+**Vulnerability:** The OIDC implementation in `sigstore/oidc.py` did not verify the `state` parameter returned by the identity provider against the session's state. This could allow an attacker to perform a CSRF attack by tricking a user into using an authorization code obtained by the attacker.
+**Learning:** Even when using established protocols like OIDC/OAuth2, it is crucial to verify all security parameters (like `state`) manually if the library or implementation requires explicit handling. The `_OAuthSession` class generated a state, but the consumer (`Issuer.identity_token`) ignored it.
+**Prevention:** Always verify that the `state` parameter in the callback matches the one sent in the authorization request. Expose internal state securely if needed for verification.
