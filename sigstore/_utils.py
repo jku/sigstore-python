@@ -39,6 +39,8 @@ from sigstore_models.common.v1 import HashAlgorithm, TimeRange
 from sigstore import hashes as sigstore_hashes
 from sigstore.errors import VerificationError
 
+DEFAULT_TIMEOUT = 30
+
 if sys.version_info < (3, 11):
     import importlib_resources as resources
 else:
