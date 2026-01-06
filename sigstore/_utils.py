@@ -66,6 +66,11 @@ KeyID = NewType("KeyID", bytes)
 A newtype for `bytes` objects that contain a key id.
 """
 
+DEFAULT_TIMEOUT = 30
+"""
+Global default timeout for network requests, in seconds.
+"""
+
 
 def load_pem_public_key(
     key_pem: bytes,

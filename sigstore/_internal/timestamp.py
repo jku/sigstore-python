@@ -29,8 +29,9 @@ from rfc3161_client import (
 from rfc3161_client.base import HashAlgorithm
 
 from sigstore._internal import USER_AGENT
+from sigstore._utils import DEFAULT_TIMEOUT
 
-CLIENT_TIMEOUT: int = 5
+CLIENT_TIMEOUT: int = DEFAULT_TIMEOUT
 
 
 class TimestampSource(enum.Enum):
