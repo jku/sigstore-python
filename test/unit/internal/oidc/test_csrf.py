@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import sys
 from unittest.mock import MagicMock, patch
+
 import pytest
-from sigstore.oidc import Issuer, IdentityError
+
+from sigstore.oidc import IdentityError, Issuer
+
 
 class TestCsrfProtection:
     def test_identity_token_csrf_protection(self):
@@ -23,11 +25,12 @@ class TestCsrfProtection:
         Verify that identity_token() raises IdentityError when the returned state
         does not match the session state (CSRF protection).
         """
-        with patch("sigstore.oidc.webbrowser.open") as mock_browser, \
-             patch("sigstore._internal.oidc.oauth._OAuthFlow") as MockOAuthFlow, \
-             patch("sigstore.oidc.requests.Session") as MockSession, \
-             patch("sigstore.oidc.IdentityToken") as MockIdentityToken:
-
+        with (
+            patch("sigstore.oidc.webbrowser.open"),
+            patch("sigstore._internal.oidc.oauth._OAuthFlow") as MockOAuthFlow,
+            patch("sigstore.oidc.requests.Session") as MockSession,
+            patch("sigstore.oidc.IdentityToken"),
+        ):
             # Setup the mock server returned by _OAuthFlow context manager
             mock_server = MagicMock()
             MockOAuthFlow.return_value.__enter__.return_value = mock_server
@@ -49,7 +52,7 @@ class TestCsrfProtection:
             # The auth response simulates what the redirect handler receives
             mock_server.auth_response = {
                 "code": ["fake-code"],
-                "state": [malicious_state]
+                "state": [malicious_state],
             }
 
             # Mock responses for Issuer initialization and token exchange
@@ -59,7 +62,7 @@ class TestCsrfProtection:
             mock_config_response = MagicMock()
             mock_config_response.json.return_value = {
                 "authorization_endpoint": "https://auth.example.com",
-                "token_endpoint": "https://token.example.com"
+                "token_endpoint": "https://token.example.com",
             }
             mock_config_response.raise_for_status.return_value = None
 
