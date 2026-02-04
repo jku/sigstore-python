@@ -28,7 +28,7 @@ jobs:
       - name: install sigstore-python
         run: python -m pip install .
 
-      - uses: sigstore/sigstore-conformance@main
+      - uses: jku/sigstore-conformance@fix-selftest-env-lookup
         with:
           entrypoint: ${{ github.workspace }}/test/integration/sigstore-python-conformance
           xfail: "test_verify*intoto-with-custom-trust-root] test_verify*managed-key-happy-path] test_verify*managed-key-and-trusted-root]" # see issues 1442, 1244
