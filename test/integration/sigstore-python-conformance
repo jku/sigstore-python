@@ -100,10 +100,6 @@ with NamedTemporaryFile(mode="wt") as temp_file:
     if subcommand == "sign":
         if "--in-toto" in fixed_args:
             # Handle DSSE signing via library call
-            fixed_args.remove("--in-toto")
-
-            # Add the repository root to the path so we can import the local `sigstore` package
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
             from sigstore.dsse import Statement
             from sigstore.models import ClientTrustConfig
