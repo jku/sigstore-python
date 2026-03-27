@@ -32,6 +32,7 @@ import requests
 from pydantic import BaseModel, StrictStr
 
 from sigstore._internal import USER_AGENT
+from sigstore._utils import DEFAULT_TIMEOUT
 from sigstore.errors import Error, NetworkError
 
 # See: https://github.com/sigstore/fulcio/blob/b2186c0/pkg/config/config.go#L182-L201
@@ -252,7 +253,9 @@ class Issuer:
         )
 
         try:
-            resp: requests.Response = self.session.get(oidc_config_url, timeout=30)
+            resp: requests.Response = self.session.get(
+                oidc_config_url, timeout=DEFAULT_TIMEOUT
+            )
         except (requests.ConnectionError, requests.Timeout) as exc:
             raise NetworkError from exc
 
@@ -338,7 +341,7 @@ class Issuer:
                 self.oidc_config.token_endpoint,
                 data=data,
                 auth=auth,
-                timeout=30,
+                timeout=DEFAULT_TIMEOUT,
             )
         except (requests.ConnectionError, requests.Timeout) as exc:
             raise NetworkError from exc

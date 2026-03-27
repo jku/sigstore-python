@@ -18,6 +18,8 @@ Shared utilities.
 
 from __future__ import annotations
 
+DEFAULT_TIMEOUT = 30
+
 import base64
 import hashlib
 import sys
