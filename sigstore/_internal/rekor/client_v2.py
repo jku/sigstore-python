@@ -128,22 +128,11 @@ class RekorV2Client(RekorLogSubmitter):
     ) -> EntryRequestBody:
         """
         Construct a dsse request to submit to Rekor.
+
+        In practice this is a hashedrekord with DSSE PAE as payload
         """
-        req = rekor_v2.entry.CreateEntryRequest(
-            dsse_request_v002=rekor_v2.dsse.DSSERequestV002(
-                envelope=envelope._inner,
-                verifiers=[
-                    rekor_v2.verifier.Verifier(
-                        x509_certificate=common_v1.X509Certificate(
-                            raw_bytes=base64.b64encode(
-                                certificate.public_bytes(
-                                    encoding=serialization.Encoding.DER
-                                )
-                            )
-                        ),
-                        key_details=_get_key_details(certificate),
-                    )
-                ],
-            )
+        return cls._build_hashed_rekord_request(
+            hashed_input=envelope.pae_hash(),
+            signature=envelope.signature,
+            certificate=certificate,
         )
-        return EntryRequestBody(req.to_dict())

@@ -30,6 +30,7 @@ from sigstore_models.common.v1 import HashAlgorithm
 from sigstore_models.intoto import Envelope as _Envelope
 from sigstore_models.intoto import Signature as _Signature
 
+from sigstore._utils import sha256_digest
 from sigstore.errors import Error, VerificationError
 from sigstore.hashes import Hashed
 
@@ -208,6 +209,14 @@ class Envelope:
 
         self._inner = inner
         self._verify()
+
+    def pae_hash(self) -> Hashed:
+        """Return the hash of the Pre-Authentication Encoding (PAE) for this envelope."""
+        pae = _pae(self._inner.payload_type, self._inner.payload)
+        return Hashed(
+            algorithm=HashAlgorithm.SHA2_256,
+            digest=sha256_digest(pae).digest,
+        )
 
     def _verify(self) -> None:
         """

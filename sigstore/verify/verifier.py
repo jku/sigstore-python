@@ -425,24 +425,26 @@ class Verifier:
 
         # (8): verify the consistency of the log entry's body against
         #      the other bundle materials.
-        # NOTE: This is very slightly weaker than the consistency check
-        # for hashedrekord entries, due to how inclusion is recorded for DSSE:
-        # the included entry for DSSE includes an envelope hash that we
-        # *cannot* verify, since the envelope is uncanonicalized JSON.
-        # Instead, we manually pick apart the entry body below and verify
-        # the parts we can (namely the payload hash and signature list).
+        #      NOTE: DSSE envelopes come with either a dsse 0.0.1 entry
+        #      (from Rekor v1) or a hashedrekord 0.0.2 entry (from Rekor v2)
         entry = bundle.log_entry
-        if entry._inner.kind_version.kind != "dsse":
-            raise VerificationError(
-                f"Expected entry type dsse, got {entry._inner.kind_version.kind}"
-            )
-        if entry._inner.kind_version.version == "0.0.2":
-            _validate_dsse_v002_entry_body(bundle)
-        elif entry._inner.kind_version.version == "0.0.1":
-            _validate_dsse_v001_entry_body(bundle)
+        if entry._inner.kind_version.kind == "dsse":
+            if entry._inner.kind_version.version == "0.0.1":
+                _validate_dsse_v001_entry_body(bundle)
+            else:
+                raise VerificationError(
+                    f"Unsupported dsse entry version {entry._inner.kind_version.version} for DSSE"
+                )
+        elif entry._inner.kind_version.kind == "hashedrekord":
+            if entry._inner.kind_version.version == "0.0.2":
+                _validate_dsse_hashedrekord_v002_entry_body(bundle)
+            else:
+                raise VerificationError(
+                    f"Unsupported hashedrekord entry version {entry._inner.kind_version.version} for DSSE"
+                )
         else:
             raise VerificationError(
-                f"Unsupported dsse version {entry._inner.kind_version.version}"
+                f"Expected entry type dsse or hashedrekord, got {entry._inner.kind_version.kind}"
             )
 
         return (envelope._inner.payload_type, envelope._inner.payload)
@@ -554,42 +556,6 @@ def _validate_dsse_v001_entry_body(bundle: Bundle) -> None:
         raise VerificationError("log entry signatures do not match bundle")
 
 
-def _validate_dsse_v002_entry_body(bundle: Bundle) -> None:
-    """
-    Validate Entry body for dsse v002.
-    """
-    entry = bundle.log_entry
-    envelope = bundle._dsse_envelope
-    if envelope is None:
-        raise VerificationError(
-            "cannot perform DSSE verification on a bundle without a DSSE envelope"
-        )
-    try:
-        v2_body = v2.entry.Entry.from_json(entry._inner.canonicalized_body)
-    except ValidationError as exc:
-        raise VerificationError(f"invalid DSSE log entry: {exc}")
-
-    if v2_body.spec.dsse_v002 is None:
-        raise VerificationError("invalid DSSE log entry: missing dsse_v002 field")
-
-    if v2_body.spec.dsse_v002.payload_hash.algorithm != v1.HashAlgorithm.SHA2_256:
-        raise VerificationError("expected SHA256 hash in DSSE entry")
-
-    digest = sha256_digest(envelope._inner.payload).digest
-    if v2_body.spec.dsse_v002.payload_hash.digest != digest:
-        raise VerificationError("DSSE entry payload hash does not match bundle")
-
-    v2_signatures = [
-        v2.verifier.Signature(
-            content=base64.b64encode(signature.sig),
-            verifier=_v2_verifier_from_certificate(bundle.signing_certificate),
-        )
-        for signature in envelope._inner.signatures
-    ]
-    if v2_signatures != v2_body.spec.dsse_v002.signatures:
-        raise VerificationError("log entry signatures do not match bundle")
-
-
 def _validate_hashedrekord_v001_entry_body(
     bundle: Bundle, hashed_input: Hashed
 ) -> None:
@@ -617,28 +583,52 @@ def _validate_hashedrekord_v002_entry_body(
     """
     Validate Entry body for hashedrekord v002.
     """
-    entry = bundle.log_entry
     if bundle._inner.message_signature is None:
         raise VerificationError(
-            "invalid hashedrekord log entry: missing message signature"
+            "Failed to verify hashedrekord log entry: missing message signature"
         )
+    _validate_hashedrekord_v002(
+        bundle, hashed_input, bundle._inner.message_signature.signature
+    )
+
+
+def _validate_dsse_hashedrekord_v002_entry_body(bundle: Bundle) -> None:
+    """
+    Validate Entry body for dsse when stored as hashedrekord v002.
+    """
+    envelope = bundle._dsse_envelope
+    if envelope is None:
+        raise VerificationError(
+            "Failed to verify hashedrekord log entry: missing DSSE envelope"
+        )
+    _validate_hashedrekord_v002(bundle, envelope.pae_hash(), envelope.signature)
+
+
+def _validate_hashedrekord_v002(
+    bundle: Bundle, hashed_data: Hashed, signature: bytes
+) -> None:
+    entry = bundle.log_entry
     v2_expected_body = v2.entry.Entry(
         kind=entry._inner.kind_version.kind,
         api_version=entry._inner.kind_version.version,
         spec=v2.entry.Spec(
             hashed_rekord_v002=v2.hashedrekord.HashedRekordLogEntryV002(
                 data=v1.HashOutput(
-                    algorithm=hashed_input.algorithm,
-                    digest=base64.b64encode(hashed_input.digest),
+                    algorithm=hashed_data.algorithm,
+                    digest=base64.b64encode(hashed_data.digest),
                 ),
                 signature=v2.verifier.Signature(
-                    content=base64.b64encode(bundle._inner.message_signature.signature),
+                    content=base64.b64encode(signature),
                     verifier=_v2_verifier_from_certificate(bundle.signing_certificate),
                 ),
             )
         ),
     )
-    v2_actual_body = v2.entry.Entry.from_json(entry._inner.canonicalized_body)
+    try:
+        v2_actual_body = v2.entry.Entry.from_json(entry._inner.canonicalized_body)
+    except ValidationError as exc:
+        raise VerificationError(f"invalid log entry: {exc}")
+
     if v2_expected_body != v2_actual_body:
         raise VerificationError(
             "transparency log entry is inconsistent with other materials"

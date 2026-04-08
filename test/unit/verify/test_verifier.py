@@ -101,18 +101,6 @@ def test_verifier_bundle_artifact(signing_bundle, null_policy, filename):
     verifier.verify_artifact(file.read_bytes(), bundle, null_policy)
 
 
-@pytest.mark.online
-@pytest.mark.parametrize(
-    "filename",
-    ("a.dsse.staging-rekor-v2.txt",),
-)
-def test_verifier_bundle_dsse(signing_bundle, null_policy, filename):
-    (file, bundle) = signing_bundle(filename)
-
-    verifier = Verifier.staging()
-    verifier.verify_dsse(bundle, null_policy)
-
-
 @pytest.mark.parametrize(
     "filename", ("bundle.txt", "bundle_v3.txt", "bundle_v3_alt.txt")
 )

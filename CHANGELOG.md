@@ -8,6 +8,11 @@ All versions prior to 0.9.0 are untracked.
 
 ## [Unreleased]
 
+### Changed
+
+* Rekor: entry type "dsse 0.0.2" has been removed from Rekor v2: Use
+  "hashedrekord 0.0.2" for DSSE signing instead
+
 ### Fixed
 
 * Fixed ~60s hang after completing browser-based OIDC authentication.
